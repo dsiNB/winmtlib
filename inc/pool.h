@@ -4,6 +4,10 @@
 #include <windows.h>
 typedef void* wmt_task_func;
 typedef void* wmt_task_arg;
+typedef void* wmt_queue_item;
+
+#define MAX_THREADS 16
+#define MAX_TASKS 2000
 
 typedef struct _wmt_thread {
 	HANDLE id;
@@ -11,15 +15,27 @@ typedef struct _wmt_thread {
 
 typedef struct _wmt_pool {
 	wmt_thread* threads;
-	unsigned int size;
+	int size;
 } wmt_pool;
 
 typedef struct _wmt_task {
 	wmt_task_func func;
 	wmt_task_arg arg;
+	//HANDLE mutex;
 } wmt_task;
 
 typedef struct _wmt_queue {
-
+	wmt_queue_item* items;
+	int maxitems;
+	int writepos;
+	int readpos;
+	HANDLE mutex;
 } wmt_queue;
+
+wmt_pool* initPool(wmt_queue* queue, int amount);
+wmt_queue* initTaskQueue(int amount);
+void* tmain(wmt_queue* queue);
+int addTask(wmt_queue* queue, wmt_task_func addr, wmt_task_arg arg);
+void inc_writepos(wmt_queue* queue);
+void inc_readpos(wmt_queue* queue);
 #endif
