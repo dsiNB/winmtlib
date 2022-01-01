@@ -53,11 +53,13 @@ int addTask(wmt_queue* queue, wmt_task_func addr, wmt_task_arg arg) {
 
 	if (thistask->func == NULL) { /*if queue slot is available*/
 		thistask->func = addr;
+		thistask->arg = arg;
 		inc_writepos(queue);
 	}
 	else {
 		while (thistask->func != NULL) { /*printf("&");*/ } /*wait for current task in queue slot to be handled*/
 		thistask->func = addr;
+		thistask->arg = arg;
 		inc_writepos(queue);
 	}
 	//printf("+");
@@ -121,7 +123,8 @@ void* tmain(wmt_queue* queue) {
 		claimed = WaitForSingleObject(queue->mutex, INFINITE);
 		if (claimed == WAIT_OBJECT_0) {
 			wmt_task* thistask = (wmt_task*)&queue->items[queue->readpos];
-			void (*task)() = NULL;
+			void* (*task)(void*) = NULL;
+			wmt_task_arg arg = NULL;
 			_asm {
 				mov ebx, handle_task
 				mov ecx, while_no_func
@@ -144,10 +147,12 @@ void* tmain(wmt_queue* queue) {
 			}*/
 		handle_task:
 			task = thistask->func;
+			arg = thistask->arg;
 			thistask->func = NULL;
+			thistask->arg = NULL;
 			inc_readpos(queue);
 			ReleaseMutex(queue->mutex);
-			task();
+			task(arg);
 	goto tmain_loop;
 	}
 	return (void*)0;
