@@ -32,7 +32,7 @@ wmt_queue* initTaskQueue(int amount) {
 	taskqueue->readpos = 0;
 	taskqueue->maxitems = amount;
 	taskqueue->mutex = CreateMutex(NULL, FALSE, NULL);
-	taskqueue->items = (wmt_queue_item*)malloc(sizeof(wmt_task) * amount); /*im trolling*/
+	taskqueue->items = (wmt_item*)malloc(sizeof(wmt_task) * amount); /*im trolling*/
 	if (!taskqueue->items) { return (wmt_queue*)-1; }
 
 	/*init mutexes*/
@@ -66,49 +66,124 @@ int addTask(wmt_queue* queue, wmt_task_func addr, wmt_task_arg arg) {
 
 void inc_writepos(wmt_queue* queue) {
 	int* writepos = &queue->writepos;
-	if (*writepos == queue->maxitems - 1) {
+	_asm {
+		mov esi, writepos
+		mov eax, dword ptr[esi] //*readpos
+
+		mov ebx, queue
+		mov ecx, dword ptr [ebx+4] //maxitems value
+		dec ecx
+
+		mov ebx, eax
+		inc eax //queue->readpos++
+		xor edx, edx
+		cmp ecx, ebx
+		cmove eax, edx
+		mov dword ptr [esi], eax
+	}
+	/*if (*writepos == queue->maxitems - 1) {
 		*writepos = 0;
 	}
 	else {
 		queue->writepos++;
-	}
+	}*/
 }
 
 void inc_readpos(wmt_queue* queue) {
 	int* readpos = &queue->readpos;
-	if (*readpos == queue->maxitems - 1) {
+	_asm {
+		mov esi, readpos
+		mov eax, dword ptr [esi] //*readpos
+		
+		mov ebx, queue
+		mov ecx, dword ptr [ebx+4] //maxitems value
+		dec ecx
+
+		mov ebx, eax
+		inc eax //queue->readpos++
+		xor edx, edx
+		cmp ecx, ebx
+		cmove eax, edx
+		mov dword ptr [esi], eax
+	}
+
+/*	if (*readpos == queue->maxitems - 1) {
 		*readpos = 0;
 	}
 	else {
 		queue->readpos++;
-	}
+	}*/
 }
 
 void* tmain(wmt_queue* queue) {
 	DWORD claimed;
-	while (1) {
+	tmain_loop:
 		claimed = WaitForSingleObject(queue->mutex, INFINITE);
 		if (claimed == WAIT_OBJECT_0) {
 			wmt_task* thistask = (wmt_task*)&queue->items[queue->readpos];
-
-			if (thistask->func != NULL) { /*if queue slot is available*/
-				void (*task)() = thistask->func;
-				thistask->func = NULL;
-				inc_readpos(queue);
-				ReleaseMutex(queue->mutex);
-				task();
+			void (*task)() = NULL;
+			_asm {
+				mov ebx, handle_task
+				mov ecx, while_no_func
+				mov esi, thistask
+				mov eax, dword ptr [esi]
+				cmp eax, 0
+				cmove ebx, ecx
+				jmp ebx
+			while_no_func:
+				mov eax, dword ptr [esi]
+				cmp eax, 0
+				je while_no_func
+			}
+			/*if (thistask->func != NULL) { //if queue slot is available
+				goto handle_task;
 			}
 			else {
-				while (thistask->func == NULL) { } /*wait for current task in queue slot to be handled*/
-				void (*task)() = thistask->func;
-				if (!task) {return (void*)-1;}
-				thistask->func = NULL;
-				inc_readpos(queue);
-				ReleaseMutex(queue->mutex);
-				task();
-			}
-			
-		}	
+				while (thistask->func == NULL) { } //wait for current task in queue slot to be handled
+				goto handle_task;
+			}*/
+		handle_task:
+			task = thistask->func;
+			thistask->func = NULL;
+			inc_readpos(queue);
+			ReleaseMutex(queue->mutex);
+			task();
+	goto tmain_loop;
 	}
 	return (void*)0;
+}
+
+wmt_stack* initStack(int size) {
+	wmt_stack* stk = malloc(sizeof(wmt_stack));
+	if (!stk) { return(wmt_stack*)-1; }
+	stk->items = malloc(sizeof(wmt_item) * size);
+	if (!stk->items) { return(wmt_stack*)-1; }
+	stk->sp = 0;
+	stk->mutex = CreateMutex(NULL, FALSE, NULL);
+	return stk;
+}
+
+wmt_stack_item_ptr wmt_stack_pop(wmt_stack* stk) {
+	wmt_stack_item_ptr itemptr = 0;
+	DWORD waitResult = WaitForSingleObject(stk->mutex, INFINITE);
+	if (waitResult == WAIT_OBJECT_0) {
+		if (stk->sp == 0) { return 0; }
+		itemptr = stk->items[stk->sp];
+		stk->items[stk->sp] = 0;
+		stk->sp--;
+		ReleaseMutex(stk->mutex);
+	}
+
+	return itemptr;
+}
+
+int wmt_stack_push(wmt_stack* stk, wmt_stack_item_ptr itemptr) {
+	DWORD waitResult = WaitForSingleObject(stk->mutex, INFINITE);
+	if (waitResult == WAIT_OBJECT_0) {
+		if (stk->sp == stk->maxitems - 1) { return 1; }
+		stk->sp++;
+		stk->items[stk->sp] = itemptr;
+		ReleaseMutex(stk->mutex);
+	}
+	return 0;
 }
