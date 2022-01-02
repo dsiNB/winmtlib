@@ -1,5 +1,5 @@
-#ifndef WINMTLIB_POOL_H
-#define WINMTLIB_POOL_H
+#ifndef WINMTLIB_H
+#define WINMTLIB_H
 
 #include <windows.h>
 typedef void* wmt_task_func;
