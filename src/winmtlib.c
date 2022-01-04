@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define MAX_TASKS 1000
+#define MAX_THREADS 8
+
 wmt_pool* initPool(wmt_queue* queue, int amount) {
 	/*allocate memory*/
 	wmt_pool* pool = malloc(sizeof(wmt_pool));
@@ -41,7 +44,6 @@ wmt_queue* initTaskQueue(int amount) {
 		thistask = (wmt_task*)&taskqueue->items[m];
 		thistask->func = NULL;
 		thistask->arg = NULL;
-		//thistask->mutex = CreateMutex(NULL, FALSE, NULL);
 	}
 
 	printf("[init task queue]");
