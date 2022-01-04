@@ -2,8 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAX_TASKS 1000
-#define MAX_THREADS 8
+
 
 wmt_pool* initPool(wmt_queue* queue, int amount) {
 	/*allocate memory*/
@@ -170,8 +169,8 @@ wmt_stack* initStack(int size) {
 	return stk;
 }
 
-wmt_stack_item_ptr wmt_stack_pop(wmt_stack* stk) {
-	wmt_stack_item_ptr itemptr = 0;
+wmt_item wmt_stack_pop(wmt_stack* stk) {
+	wmt_item itemptr = 0;
 	DWORD waitResult = WaitForSingleObject(stk->mutex, INFINITE);
 	if (waitResult == WAIT_OBJECT_0) {
 		if (stk->sp == 0) { return 0; }

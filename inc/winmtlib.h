@@ -6,8 +6,9 @@ typedef void* wmt_task_func;
 typedef void* wmt_task_arg;
 typedef void* wmt_item;
 typedef void* wmt_stack_item_ptr;
-#define MAX_THREADS 256
-#define MAX_TASKS 2000
+
+#define MAX_TASKS 1000
+#define MAX_THREADS 8
 
 typedef struct _wmt_thread {
 	HANDLE id;
